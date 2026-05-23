@@ -46,7 +46,7 @@ withDefaults(defineProps<Props>(), {
   }
 
   &--primary::before {
-    background: var(--el-color-primary);
+    background: #e0522d;
   }
 
   &--success::before {

@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { Key, User as UserIcon } from '@element-plus/icons-vue'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import type { FormInst, FormRules } from 'naive-ui'
+import { KeyOutline, PersonOutline } from '@vicons/ionicons5'
+import { NButton, NForm, NFormItem, NIcon, NInput, useMessage } from 'naive-ui'
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
@@ -8,15 +9,16 @@ import { useAuthStore } from '@/stores/auth.store'
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const message = useMessage()
 
-const formRef = ref<FormInstance>()
+const formRef = ref<FormInst>()
 const form = reactive({
   username: '',
   password: '',
 })
 const loading = ref(false)
 
-const rules: FormRules<typeof form> = {
+const rules: FormRules = {
   username: [
     { required: true, message: '请输入用户名', trigger: 'blur' },
     { min: 3, max: 32, message: '用户名长度 3-32 位', trigger: 'blur' },
@@ -30,21 +32,24 @@ const rules: FormRules<typeof form> = {
 async function onSubmit() {
   if (!formRef.value)
     return
-  const ok = await formRef.value.validate().catch(() => false)
-  if (!ok)
+  try {
+    await formRef.value.validate()
+  }
+  catch {
     return
+  }
 
   loading.value = true
   try {
     await auth.login({ username: form.username, password: form.password })
-    ElMessage.success(`欢迎回来，${auth.userInfo?.nickname || auth.userInfo?.username}`)
+    message.success(`欢迎回来，${auth.userInfo?.nickname || auth.userInfo?.username}`)
     const redirect = (route.query.redirect as string) || '/dashboard'
     router.replace(redirect)
   }
   catch (err: any) {
     // ApiError 的业务 message 已在 client.ts 弹过 toast；其它本地校验失败这里补一道
     if (err?.name !== 'ApiError') {
-      ElMessage.error(err?.message || '登录失败，请稍后重试')
+      message.error(err?.message || '登录失败，请稍后重试')
     }
   }
   finally {
@@ -68,33 +73,41 @@ async function onSubmit() {
         </div>
       </div>
 
-      <ElForm
+      <NForm
         ref="formRef"
         :model="form"
         :rules="rules"
         size="large"
+        :show-label="false"
         class="login-card__form"
         @keyup.enter="onSubmit"
       >
-        <ElFormItem prop="username">
-          <ElInput v-model="form.username" placeholder="用户名" :prefix-icon="UserIcon" autocomplete="username" />
-        </ElFormItem>
-        <ElFormItem prop="password">
-          <ElInput
-            v-model="form.password"
+        <NFormItem path="username">
+          <NInput v-model:value="form.username" placeholder="用户名" autocomplete="username">
+            <template #prefix>
+              <NIcon><PersonOutline /></NIcon>
+            </template>
+          </NInput>
+        </NFormItem>
+        <NFormItem path="password">
+          <NInput
+            v-model:value="form.password"
             type="password"
             placeholder="密码"
-            :prefix-icon="Key"
-            show-password
+            show-password-on="click"
             autocomplete="current-password"
-          />
-        </ElFormItem>
-        <ElFormItem>
-          <ElButton type="primary" class="login-card__submit" :loading="loading" @click="onSubmit">
+          >
+            <template #prefix>
+              <NIcon><KeyOutline /></NIcon>
+            </template>
+          </NInput>
+        </NFormItem>
+        <NFormItem :show-label="false" :show-feedback="false">
+          <NButton type="primary" :loading="loading" class="login-card__submit" @click="onSubmit">
             登 录
-          </ElButton>
-        </ElFormItem>
-      </ElForm>
+          </NButton>
+        </NFormItem>
+      </NForm>
 
       <div class="login-card__tip">
         仅管理员账号可登录。普通用户请前往
@@ -112,13 +125,15 @@ async function onSubmit() {
   justify-content: center;
   width: 100%;
   height: 100%;
+  padding: 20px;
   background:
     radial-gradient(circle at 12% 8%, rgba(224, 82, 45, 0.18) 0 18%, transparent 38%),
     linear-gradient(135deg, #2b2b35, #1a1a22);
 }
 
 .login-card {
-  width: 420px;
+  width: 100%;
+  max-width: 420px;
   padding: 40px 36px 28px;
   border-radius: 16px;
   background: #fff;
@@ -174,7 +189,19 @@ async function onSubmit() {
   text-align: center;
 
   a {
-    color: var(--el-color-primary);
+    color: #e0522d;
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 36px 24px 24px;
+  }
+}
+
+@media (max-width: 340px) {
+  .login-card {
+    padding: 32px 20px 22px;
   }
 }
 </style>

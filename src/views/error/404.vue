@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { NButton, NResult } from 'naive-ui'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -6,13 +7,13 @@ const router = useRouter()
 
 <template>
   <div class="error-page">
-    <ElResult icon="info" title="404 页面不存在" sub-title="访问的地址不对劲，回去看看吧。">
-      <template #extra>
-        <ElButton type="primary" @click="router.replace({ name: 'dashboard' })">
+    <NResult status="404" title="页面不存在" description="访问的地址不对劲,回去看看吧。">
+      <template #footer>
+        <NButton type="primary" @click="router.replace({ name: 'dashboard' })">
           回首页
-        </ElButton>
+        </NButton>
       </template>
-    </ElResult>
+    </NResult>
   </div>
 </template>
 
@@ -23,5 +24,6 @@ const router = useRouter()
   justify-content: center;
   width: 100%;
   height: 100%;
+  padding: 20px;
 }
 </style>

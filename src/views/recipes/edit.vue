@@ -1,17 +1,34 @@
 <script setup lang="ts">
+import type { FormInst, FormRules } from 'naive-ui'
 import type { RecipeDifficulty } from '@/types/admin'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import {
+  NButton,
+  NCard,
+  NDivider,
+  NForm,
+  NFormItem,
+  NImage,
+  NInput,
+  NInputNumber,
+  NRadioButton,
+  NRadioGroup,
+  NSpin,
+  useMessage,
+} from 'naive-ui'
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminRecipesApi, type UpsertRecipePayload } from '@/api/recipes'
+import { useScreen } from '@/composables/useScreen'
 
 const route = useRoute()
 const router = useRouter()
+const message = useMessage()
+const { isMobile } = useScreen()
 
 const id = computed(() => (route.params.id as string | undefined) ?? '')
 const isEdit = computed(() => Boolean(id.value))
 
-const formRef = ref<FormInstance>()
+const formRef = ref<FormInst>()
 const submitting = ref(false)
 const loading = ref(false)
 
@@ -76,24 +93,27 @@ function tryParseJson(value: string): { ok: true, data: Record<string, unknown> 
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
       return { ok: true, data: parsed as Record<string, unknown> }
     }
-    return { ok: false, error: '必须是 JSON 对象（{}）' }
+    return { ok: false, error: '必须是 JSON 对象({})' }
   }
   catch (err: any) {
     return { ok: false, error: `JSON 解析失败: ${err.message}` }
   }
 }
 
-const rules: FormRules<FormState> = {
-  name: [{ required: true, message: '请输入菜谱名', trigger: 'blur' }, { min: 1, max: 120, message: '长度 1-120', trigger: 'blur' }],
+const rules: FormRules = {
+  name: [
+    { required: true, message: '请输入菜谱名', trigger: 'blur' },
+    { min: 1, max: 120, message: '长度 1-120', trigger: 'blur' },
+  ],
   difficulty: [{ required: true, message: '请选择难度', trigger: 'change' }],
   estimatedMinutes: [{ required: true, type: 'number', message: '请输入用时', trigger: 'blur' }],
   reasonTemplate: [{ required: true, message: '请输入推荐理由模板', trigger: 'blur' }],
   requiredIngredientsInput: [{
-    validator: (_rule, value: string, cb) => {
+    validator: (_rule, value: string) => {
       const arr = splitTags(value ?? '')
       if (arr.length === 0)
-        cb(new Error('至少要有一项必备食材'))
-      else cb()
+        return new Error('至少要有一项必备食材')
+      return true
     },
     trigger: 'blur',
   }],
@@ -132,18 +152,21 @@ async function load() {
 async function onSubmit() {
   if (!formRef.value)
     return
-  const ok = await formRef.value.validate().catch(() => false)
-  if (!ok)
+  try {
+    await formRef.value.validate()
+  }
+  catch {
     return
+  }
 
   const stepImagesParsed = tryParseJson(form.stepImagesJson)
   if (!stepImagesParsed.ok) {
-    ElMessage.error(`stepImages: ${stepImagesParsed.error}`)
+    message.error(`stepImages: ${stepImagesParsed.error}`)
     return
   }
   const portionsParsed = tryParseJson(form.portionsJson)
   if (!portionsParsed.ok) {
-    ElMessage.error(`portions: ${portionsParsed.error}`)
+    message.error(`portions: ${portionsParsed.error}`)
     return
   }
 
@@ -171,18 +194,18 @@ async function onSubmit() {
   try {
     if (isEdit.value) {
       await adminRecipesApi.update(id.value, payload)
-      ElMessage.success('已保存')
+      message.success('已保存')
     }
     else {
       await adminRecipesApi.create(payload)
-      ElMessage.success('已创建')
+      message.success('已创建')
     }
     router.replace({ name: 'recipes' })
   }
   catch (err: any) {
     if (err?.name === 'ApiError')
       return
-    ElMessage.error('保存失败')
+    message.error('保存失败')
   }
   finally {
     submitting.value = false
@@ -193,143 +216,163 @@ function goBack() {
   router.replace({ name: 'recipes' })
 }
 
+// mobile 上 label 放上方,desktop 左对齐
+const labelPlacement = computed(() => isMobile.value ? 'top' : 'left')
+const labelWidth = computed(() => isMobile.value ? 'auto' : 120)
+
 onMounted(load)
 </script>
 
 <template>
-  <div v-loading="loading" class="recipe-edit">
-    <ElCard shadow="never">
-      <template #header>
-        <div class="recipe-edit__header">
-          <span class="recipe-edit__title">{{ isEdit ? '编辑菜谱' : '新建菜谱' }}</span>
-          <ElButton link @click="goBack">
-            返回列表
-          </ElButton>
-        </div>
-      </template>
-
-      <ElForm ref="formRef" :model="form" :rules="rules" label-width="120px" label-position="right">
-        <ElDivider content-position="left">
-          基本信息
-        </ElDivider>
-        <ElFormItem label="菜谱名" prop="name">
-          <ElInput v-model="form.name" maxlength="120" show-word-limit placeholder="例：番茄炒蛋" />
-        </ElFormItem>
-        <ElFormItem label="分类">
-          <ElInput v-model="form.category" maxlength="64" placeholder="例：meat_dish / vegetable_dish / staple" />
-        </ElFormItem>
-        <ElFormItem label="来源">
-          <ElInput v-model="form.source" maxlength="64" placeholder="例：seed / howtocook" />
-        </ElFormItem>
-        <ElFormItem label="难度" prop="difficulty">
-          <ElRadioGroup v-model="form.difficulty">
-            <ElRadioButton value="easy">
-              简单
-            </ElRadioButton>
-            <ElRadioButton value="medium">
-              中等
-            </ElRadioButton>
-            <ElRadioButton value="hard">
-              困难
-            </ElRadioButton>
-          </ElRadioGroup>
-        </ElFormItem>
-        <ElFormItem label="用时（分钟）" prop="estimatedMinutes">
-          <ElInputNumber v-model="form.estimatedMinutes" :min="1" :max="600" />
-        </ElFormItem>
-        <ElFormItem label="人气分">
-          <ElInputNumber v-model="form.popularityScore" :min="0" />
-        </ElFormItem>
-        <ElFormItem label="推荐理由" prop="reasonTemplate">
-          <ElInput v-model="form.reasonTemplate" maxlength="200" show-word-limit placeholder="例：冰箱里 {ingredients} 都有，15 分钟出锅。" />
-        </ElFormItem>
-        <ElFormItem label="小贴士">
-          <ElInput v-model="form.tips" type="textarea" :rows="3" maxlength="2000" show-word-limit />
-        </ElFormItem>
-
-        <ElDivider content-position="left">
-          食材
-        </ElDivider>
-        <ElFormItem label="必备食材" prop="requiredIngredientsInput">
-          <ElInput
-            v-model="form.requiredIngredientsInput"
-            type="textarea"
-            :rows="2"
-            placeholder="多个食材用逗号、中文逗号或换行分隔"
-          />
-        </ElFormItem>
-        <ElFormItem label="可选食材">
-          <ElInput
-            v-model="form.optionalIngredientsInput"
-            type="textarea"
-            :rows="2"
-            placeholder="多个食材用逗号、中文逗号或换行分隔"
-          />
-        </ElFormItem>
-        <ElFormItem label="允许缺失">
-          <ElInput
-            v-model="form.missingIngredientsInput"
-            type="textarea"
-            :rows="2"
-            placeholder="推荐时不扣分的食材"
-          />
-        </ElFormItem>
-
-        <ElDivider content-position="left">
-          步骤
-        </ElDivider>
-        <ElFormItem label="操作步骤">
-          <ElInput
-            v-model="form.instructionsText"
-            type="textarea"
-            :rows="6"
-            placeholder="一行一步"
-          />
-        </ElFormItem>
-        <ElFormItem label="步骤图 JSON">
-          <ElInput
-            v-model="form.stepImagesJson"
-            type="textarea"
-            :rows="4"
-            placeholder="形如 { &quot;3&quot;: [&quot;https://...&quot;], &quot;9&quot;: [&quot;https://...&quot;] }，空表示无"
-          />
-        </ElFormItem>
-        <ElFormItem label="用料计算 JSON">
-          <ElInput
-            v-model="form.portionsJson"
-            type="textarea"
-            :rows="4"
-            placeholder="形如 { &quot;description&quot;: &quot;...&quot;, &quot;items&quot;: [{ &quot;name&quot;: &quot;白糖&quot;, &quot;amount&quot;: &quot;10 克&quot; }] }"
-          />
-        </ElFormItem>
-
-        <ElDivider content-position="left">
-          图片与来源
-        </ElDivider>
-        <ElFormItem label="菜谱图 URL">
-          <div class="recipe-edit__image-row">
-            <ElInput v-model="form.imageUrl" maxlength="500" placeholder="https://..." />
-            <ElImage v-if="form.imageUrl" :src="form.imageUrl" fit="cover" class="recipe-edit__preview" :preview-src-list="[form.imageUrl]" />
+  <NSpin :show="loading">
+    <div class="recipe-edit">
+      <NCard :bordered="false">
+        <template #header>
+          <div class="recipe-edit__header">
+            <span class="recipe-edit__title">{{ isEdit ? '编辑菜谱' : '新建菜谱' }}</span>
+            <NButton text @click="goBack">
+              返回列表
+            </NButton>
           </div>
-        </ElFormItem>
-        <ElFormItem label="图源 URL">
-          <ElInput v-model="form.imageSourceUrl" maxlength="500" placeholder="原始 raw URL（fallback 用）" />
-        </ElFormItem>
-        <ElFormItem label="教程链接">
-          <ElInput v-model="form.sourceRefUrl" maxlength="500" placeholder="原文链接" />
-        </ElFormItem>
+        </template>
 
-        <ElFormItem>
-          <ElButton type="primary" :loading="submitting" @click="onSubmit">
-            {{ isEdit ? '保存修改' : '创建菜谱' }}
-          </ElButton>
-          <ElButton @click="goBack">
-            取消
-          </ElButton>
-        </ElFormItem>
-      </ElForm>
-    </ElCard>
-  </div>
+        <NForm
+          ref="formRef"
+          :model="form"
+          :rules="rules"
+          :label-placement="labelPlacement"
+          :label-width="labelWidth"
+          require-mark-placement="right-hanging"
+        >
+          <NDivider title-placement="left">
+            基本信息
+          </NDivider>
+          <NFormItem label="菜谱名" path="name">
+            <NInput v-model:value="form.name" maxlength="120" show-count placeholder="例:番茄炒蛋" />
+          </NFormItem>
+          <NFormItem label="分类" path="category">
+            <NInput v-model:value="form.category" maxlength="64" placeholder="例:meat_dish / vegetable_dish / staple" />
+          </NFormItem>
+          <NFormItem label="来源" path="source">
+            <NInput v-model:value="form.source" maxlength="64" placeholder="例:seed / howtocook" />
+          </NFormItem>
+          <NFormItem label="难度" path="difficulty">
+            <NRadioGroup v-model:value="form.difficulty">
+              <NRadioButton value="easy">
+                简单
+              </NRadioButton>
+              <NRadioButton value="medium">
+                中等
+              </NRadioButton>
+              <NRadioButton value="hard">
+                困难
+              </NRadioButton>
+            </NRadioGroup>
+          </NFormItem>
+          <NFormItem label="用时(分钟)" path="estimatedMinutes">
+            <NInputNumber v-model:value="form.estimatedMinutes" :min="1" :max="600" />
+          </NFormItem>
+          <NFormItem label="人气分" path="popularityScore">
+            <NInputNumber v-model:value="form.popularityScore" :min="0" />
+          </NFormItem>
+          <NFormItem label="推荐理由" path="reasonTemplate">
+            <NInput v-model:value="form.reasonTemplate" maxlength="200" show-count placeholder="例:冰箱里 {ingredients} 都有,15 分钟出锅。" />
+          </NFormItem>
+          <NFormItem label="小贴士" path="tips">
+            <NInput v-model:value="form.tips" type="textarea" :rows="3" maxlength="2000" show-count />
+          </NFormItem>
+
+          <NDivider title-placement="left">
+            食材
+          </NDivider>
+          <NFormItem label="必备食材" path="requiredIngredientsInput">
+            <NInput
+              v-model:value="form.requiredIngredientsInput"
+              type="textarea"
+              :rows="2"
+              placeholder="多个食材用逗号、中文逗号或换行分隔"
+            />
+          </NFormItem>
+          <NFormItem label="可选食材" path="optionalIngredientsInput">
+            <NInput
+              v-model:value="form.optionalIngredientsInput"
+              type="textarea"
+              :rows="2"
+              placeholder="多个食材用逗号、中文逗号或换行分隔"
+            />
+          </NFormItem>
+          <NFormItem label="允许缺失" path="missingIngredientsInput">
+            <NInput
+              v-model:value="form.missingIngredientsInput"
+              type="textarea"
+              :rows="2"
+              placeholder="推荐时不扣分的食材"
+            />
+          </NFormItem>
+
+          <NDivider title-placement="left">
+            步骤
+          </NDivider>
+          <NFormItem label="操作步骤" path="instructionsText">
+            <NInput
+              v-model:value="form.instructionsText"
+              type="textarea"
+              :rows="6"
+              placeholder="一行一步"
+            />
+          </NFormItem>
+          <NFormItem label="步骤图 JSON" path="stepImagesJson">
+            <NInput
+              v-model:value="form.stepImagesJson"
+              type="textarea"
+              :rows="4"
+              placeholder='形如 { "3": ["https://..."], "9": ["https://..."] },空表示无'
+            />
+          </NFormItem>
+          <NFormItem label="用料计算 JSON" path="portionsJson">
+            <NInput
+              v-model:value="form.portionsJson"
+              type="textarea"
+              :rows="4"
+              placeholder='形如 { "description": "...", "items": [{ "name": "白糖", "amount": "10 克" }] }'
+            />
+          </NFormItem>
+
+          <NDivider title-placement="left">
+            图片与来源
+          </NDivider>
+          <NFormItem label="菜谱图 URL" path="imageUrl">
+            <div class="recipe-edit__image-row">
+              <NInput v-model:value="form.imageUrl" maxlength="500" placeholder="https://..." />
+              <NImage
+                v-if="form.imageUrl"
+                :src="form.imageUrl"
+                width="120"
+                height="120"
+                object-fit="cover"
+                class="recipe-edit__preview"
+              />
+            </div>
+          </NFormItem>
+          <NFormItem label="图源 URL" path="imageSourceUrl">
+            <NInput v-model:value="form.imageSourceUrl" maxlength="500" placeholder="原始 raw URL(fallback 用)" />
+          </NFormItem>
+          <NFormItem label="教程链接" path="sourceRefUrl">
+            <NInput v-model:value="form.sourceRefUrl" maxlength="500" placeholder="原文链接" />
+          </NFormItem>
+
+          <NFormItem :show-label="false">
+            <NButton type="primary" :loading="submitting" @click="onSubmit">
+              {{ isEdit ? '保存修改' : '创建菜谱' }}
+            </NButton>
+            <NButton style="margin-left: 12px" @click="goBack">
+              取消
+            </NButton>
+          </NFormItem>
+        </NForm>
+      </NCard>
+    </div>
+  </NSpin>
 </template>
 
 <style scoped lang="scss">
@@ -354,8 +397,13 @@ onMounted(load)
 
 .recipe-edit__preview {
   flex-shrink: 0;
-  width: 120px;
-  height: 120px;
   border-radius: 6px;
+  overflow: hidden;
+}
+
+@media (max-width: 767px) {
+  .recipe-edit__image-row {
+    flex-direction: column;
+  }
 }
 </style>

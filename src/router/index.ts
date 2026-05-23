@@ -73,4 +73,31 @@ const router = createRouter({
 
 setupRouterGuard(router)
 
+/**
+ * 兜底:动态 import chunk 失败时自动 location.reload().
+ *
+ * 场景:线上重新部署后,老 tab 里的 index.html 还指向旧 chunk hash;
+ * vite 拆出来的 hash 命名 chunk 在新 dist 里都换名了,旧 tab 一旦点路由触发
+ * 懒加载,就会 "Failed to fetch dynamically imported module" 直接挂着,
+ * 用户体验是"点菜单没反应".这里捕获到就 reload 强制拉最新 index.html.
+ *
+ * 防死循环:5s 内只允许 reload 一次,避免新版本仍然报错时反复刷.
+ */
+router.onError((error) => {
+  const msg = String((error as Error)?.message ?? error ?? '')
+  const isChunkLoadError = /Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(msg)
+  if (!isChunkLoadError)
+    return
+
+  const KEY = '__admin_chunk_reload_at'
+  const now = Date.now()
+  const last = Number(sessionStorage.getItem(KEY) || 0)
+  if (now - last < 5000)
+    return
+
+  sessionStorage.setItem(KEY, String(now))
+  // 用 location.reload 让浏览器拿带 no-store 的最新 index.html
+  location.reload()
+})
+
 export default router

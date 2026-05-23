@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { NButton, NResult } from 'naive-ui'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.store'
 
@@ -22,16 +23,16 @@ function onLogout() {
 
 <template>
   <div class="error-page">
-    <ElResult icon="warning" title="403 没有权限访问运营后台" sub-title="该账号未被授予 admin 权限，如需访问请联系管理员。">
-      <template #extra>
-        <ElButton type="primary" @click="goHome">
+    <NResult status="403" title="没有权限访问运营后台" description="该账号未被授予 admin 权限,如需访问请联系管理员。">
+      <template #footer>
+        <NButton type="primary" @click="goHome">
           回首页
-        </ElButton>
-        <ElButton @click="onLogout">
+        </NButton>
+        <NButton style="margin-left: 12px" @click="onLogout">
           换个账号登录
-        </ElButton>
+        </NButton>
       </template>
-    </ElResult>
+    </NResult>
   </div>
 </template>
 
@@ -42,5 +43,6 @@ function onLogout() {
   justify-content: center;
   width: 100%;
   height: 100%;
+  padding: 20px;
 }
 </style>

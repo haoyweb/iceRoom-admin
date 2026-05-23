@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { AdminUserDetail, UserRole, UserStatus } from '@/types/admin'
-import { ref, watch } from 'vue'
+import { NDescriptions, NDescriptionsItem, NDrawer, NDrawerContent, NEmpty, NSpin, NTag } from 'naive-ui'
+import { computed, ref, watch } from 'vue'
 import { adminUsersApi } from '@/api/users'
+import { useScreen } from '@/composables/useScreen'
 import { formatDateTime } from '@/utils/format'
 
 interface Props {
@@ -17,6 +19,11 @@ const emit = defineEmits<{
 
 const detail = ref<AdminUserDetail | null>(null)
 const loading = ref(false)
+const { isMobile } = useScreen()
+
+// mobile 抽屉从底部上滑;desktop 从右侧滑入
+const placement = computed(() => isMobile.value ? 'bottom' : 'right')
+const drawerSize = computed(() => isMobile.value ? '90%' : 600)
 
 async function load() {
   if (!props.userId)
@@ -46,61 +53,65 @@ function roleText(role: UserRole | undefined) {
   return role
 }
 
-function statusTag(status: UserStatus | undefined): { text: string, type: 'success' | 'danger' | 'info' } {
+function statusTag(status: UserStatus | undefined): { text: string, type: 'success' | 'error' | 'info' } {
   if (!status)
     return { text: '—', type: 'info' }
   return status === 'banned'
-    ? { text: '已封禁', type: 'danger' }
+    ? { text: '已封禁', type: 'error' }
     : { text: '正常', type: 'success' }
 }
 </script>
 
 <template>
-  <ElDrawer
-    :model-value="visible"
-    title="用户详情"
-    size="600px"
-    direction="rtl"
-    @update:model-value="(v: boolean) => emit('update:visible', v)"
+  <NDrawer
+    :show="visible"
+    :placement="placement"
+    :width="drawerSize"
+    :height="drawerSize"
+    @update:show="(v: boolean) => emit('update:visible', v)"
   >
-    <div v-loading="loading" class="user-drawer">
-      <ElDescriptions v-if="detail" :column="2" border>
-        <ElDescriptionsItem label="用户名">
-          {{ detail.username }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="昵称">
-          {{ detail.nickname || '—' }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="角色">
-          {{ roleText(detail.role) }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="状态">
-          <ElTag :type="statusTag(detail.status).type" size="small">
-            {{ statusTag(detail.status).text }}
-          </ElTag>
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="冰箱数">
-          {{ detail.fridgeCount }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="食材数">
-          {{ detail.foodCount }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="识别次数">
-          {{ detail.visionJobCount }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem label="注册时间">
-          {{ formatDateTime(detail.createdAt) }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem v-if="detail.status === 'banned'" label="封禁时间" :span="2">
-          {{ formatDateTime(detail.bannedAt) }}
-        </ElDescriptionsItem>
-        <ElDescriptionsItem v-if="detail.status === 'banned'" label="封禁原因" :span="2">
-          {{ detail.banReason || '—' }}
-        </ElDescriptionsItem>
-      </ElDescriptions>
-      <ElEmpty v-else-if="!loading" description="选择用户后展示详情" />
-    </div>
-  </ElDrawer>
+    <NDrawerContent title="用户详情" closable>
+      <NSpin :show="loading">
+        <div class="user-drawer">
+          <NDescriptions v-if="detail" :column="isMobile ? 1 : 2" bordered>
+            <NDescriptionsItem label="用户名">
+              {{ detail.username }}
+            </NDescriptionsItem>
+            <NDescriptionsItem label="昵称">
+              {{ detail.nickname || '—' }}
+            </NDescriptionsItem>
+            <NDescriptionsItem label="角色">
+              {{ roleText(detail.role) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem label="状态">
+              <NTag :type="statusTag(detail.status).type" size="small" :bordered="false">
+                {{ statusTag(detail.status).text }}
+              </NTag>
+            </NDescriptionsItem>
+            <NDescriptionsItem label="冰箱数">
+              {{ detail.fridgeCount }}
+            </NDescriptionsItem>
+            <NDescriptionsItem label="食材数">
+              {{ detail.foodCount }}
+            </NDescriptionsItem>
+            <NDescriptionsItem label="识别次数">
+              {{ detail.visionJobCount }}
+            </NDescriptionsItem>
+            <NDescriptionsItem label="注册时间">
+              {{ formatDateTime(detail.createdAt) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem v-if="detail.status === 'banned'" label="封禁时间" :span="2">
+              {{ formatDateTime(detail.bannedAt) }}
+            </NDescriptionsItem>
+            <NDescriptionsItem v-if="detail.status === 'banned'" label="封禁原因" :span="2">
+              {{ detail.banReason || '—' }}
+            </NDescriptionsItem>
+          </NDescriptions>
+          <NEmpty v-else-if="!loading" description="选择用户后展示详情" />
+        </div>
+      </NSpin>
+    </NDrawerContent>
+  </NDrawer>
 </template>
 
 <style scoped lang="scss">

@@ -1,5 +1,4 @@
 // 全局基础样式
-@use './element-vars.scss';
 
 * {
   box-sizing: border-box;
@@ -32,12 +31,7 @@ a {
   padding: 20px;
 }
 
-// 让 ElTable 在卡片中无多余阴影
-.el-card {
-  --el-card-border-color: rgba(229, 231, 235, 0.8);
-}
-
-// 主区滚动条美化（不动 Element Plus 内置）
+// 主区滚动条美化
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

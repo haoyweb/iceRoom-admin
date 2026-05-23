@@ -2,7 +2,7 @@ import type { ApiResponse } from '@/types/admin'
 import { createAlova } from 'alova'
 import adapterFetch from 'alova/fetch'
 import VueHook from 'alova/vue'
-import { ElMessage } from 'element-plus'
+import { message } from '@/utils/discrete-api'
 
 /**
  * Alova 实例 + 拦截器。
@@ -11,7 +11,7 @@ import { ElMessage } from 'element-plus'
  *   1. 用 alova/fetch adapter（标准浏览器 fetch），不依赖 uni-app adapter
  *   2. 401 直接跳 /login——不做 refresh 重放（admin 不像 C 端那样追求"无感续期"，
  *      运营退出再登入成本很低，去掉 refresh 队列降低复杂度）
- *   3. 业务错误统一弹 ElMessage，调用方按需 catch
+ *   3. 业务错误统一弹 message（discrete api），调用方按需 catch
  *
  * 401 处理：清 store → 跳 /login，避免被「过期 token 仍在用户态」卡死。
  * 这里通过动态 import + 全局 router 拿到跳转能力，避免顶层 import 形成循环依赖。
@@ -30,7 +30,7 @@ async function bailOutToLogin(reason: string) {
     const { useAuthStore } = await import('@/stores/auth.store')
     const { default: router } = await import('@/router')
     useAuthStore().logout()
-    ElMessage.warning('登录已过期，请重新登录')
+    message.warning('登录已过期，请重新登录')
     // 避免 push 到同一个 /login 报 NavigationDuplicated
     if (router.currentRoute.value.name !== 'login') {
       await router.replace({ name: 'login' })
@@ -68,25 +68,31 @@ export const alovaClient = createAlova({
     async onSuccess(response, method) {
       // fetch adapter 返回 Response 对象
       if (response.status === 401) {
+        const json = await response.json().catch(() => ({})) as ApiResponse<null>
+        const msg = json.message || '登录已过期'
         if (!isAuthEndpoint(method.url)) {
           await bailOutToLogin('401')
         }
-        const json = await response.json().catch(() => ({})) as ApiResponse<null>
-        const msg = json.message || '登录已过期'
+        else {
+          // 鉴权端点（login/register/refresh）401 时不能走 bailOut（用户已经在登录页），
+          // 但必须显式弹 toast——下游 catch 看到 ApiError 就跳过自己的 toast（约定：
+          // 业务消息由这里集中弹），漏掉这里就会出现「点了登录没反应」的死寂体验。
+          message.error(msg)
+        }
         throw new ApiError(msg, response.status, json)
       }
 
       if (response.status === 403) {
         const json = await response.json().catch(() => ({})) as ApiResponse<null>
         const msg = json.message || '没有权限执行该操作'
-        ElMessage.error(msg)
+        message.error(msg)
         throw new ApiError(msg, response.status, json)
       }
 
       if (!response.ok) {
         const json = await response.json().catch(() => ({})) as ApiResponse<null>
         const msg = json.message || `请求失败 (${response.status})`
-        ElMessage.error(msg)
+        message.error(msg)
         throw new ApiError(msg, response.status, json)
       }
 
@@ -101,7 +107,7 @@ export const alovaClient = createAlova({
           }
         }
         else {
-          ElMessage.error(msg)
+          message.error(msg)
         }
         throw new ApiError(msg, json.code, json)
       }
@@ -113,7 +119,7 @@ export const alovaClient = createAlova({
         throw error
       }
       const msg = error instanceof Error ? error.message : '网络异常'
-      ElMessage.error(msg)
+      message.error(msg)
       throw error
     },
   },

@@ -1,7 +1,21 @@
 <script setup lang="ts">
+import type { DataTableColumns } from 'naive-ui'
 import type { AdminVisionJobDetail, VisionRecognitionStatus } from '@/types/admin'
-import { ref, watch } from 'vue'
+import {
+  NDescriptions,
+  NDescriptionsItem,
+  NDivider,
+  NDrawer,
+  NDrawerContent,
+  NEmpty,
+  NImage,
+  NSpin,
+  NTable,
+  NTag,
+} from 'naive-ui'
+import { computed, ref, watch } from 'vue'
 import { adminVisionJobsApi } from '@/api/vision-jobs'
+import { useScreen } from '@/composables/useScreen'
 import { formatDateTime, formatNumber, formatUsd } from '@/utils/format'
 
 interface Props {
@@ -16,6 +30,13 @@ const emit = defineEmits<{
 
 const detail = ref<AdminVisionJobDetail | null>(null)
 const loading = ref(false)
+const { isMobile } = useScreen()
+
+const placement = computed(() => isMobile.value ? 'bottom' : 'right')
+const drawerSize = computed(() => isMobile.value ? '90%' : 720)
+const detailItems = computed(() => Array.isArray(detail.value?.items) ? detail.value.items : [])
+const detailIgnored = computed(() => Array.isArray(detail.value?.ignored) ? detail.value.ignored : [])
+const detailWarnings = computed(() => Array.isArray(detail.value?.warnings) ? detail.value.warnings : [])
 
 async function load() {
   if (!props.jobId)
@@ -38,131 +59,151 @@ watch(
   },
 )
 
-function statusTag(status: VisionRecognitionStatus | undefined): { text: string, type: 'info' | 'success' | 'danger' } {
+function statusTag(status: VisionRecognitionStatus | undefined): { text: string, type: 'info' | 'success' | 'error' } {
   if (status === 'success')
     return { text: '成功', type: 'success' }
   if (status === 'failed')
-    return { text: '失败', type: 'danger' }
+    return { text: '失败', type: 'error' }
   return { text: '识别中', type: 'info' }
 }
 </script>
 
 <template>
-  <ElDrawer
-    :model-value="visible"
-    title="识别任务详情"
-    size="720px"
-    direction="rtl"
-    @update:model-value="(v: boolean) => emit('update:visible', v)"
+  <NDrawer
+    :show="visible"
+    :placement="placement"
+    :width="drawerSize"
+    :height="drawerSize"
+    @update:show="(v: boolean) => emit('update:visible', v)"
   >
-    <div v-loading="loading" class="job-drawer">
-      <template v-if="detail">
-        <ElDescriptions :column="2" border>
-          <ElDescriptionsItem label="时间" :span="2">
-            {{ formatDateTime(detail.createdAt) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="用户">
-            {{ detail.user.nickname || detail.user.username }} (@{{ detail.user.username }})
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="状态">
-            <ElTag :type="statusTag(detail.status).type" size="small">
-              {{ statusTag(detail.status).text }}
-            </ElTag>
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="Provider">
-            {{ detail.provider || '—' }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="模型">
-            {{ detail.model || '—' }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="来源">
-            {{ detail.detectedSourceType || detail.requestedSourceType }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="识别项数">
-            {{ detail.itemCount }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="input tokens">
-            {{ formatNumber(detail.inputTokens) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="output tokens">
-            {{ formatNumber(detail.outputTokens) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="total tokens">
-            {{ formatNumber(detail.totalTokens) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem label="成本">
-            {{ formatUsd(detail.costUSD, 6) }}
-          </ElDescriptionsItem>
-          <ElDescriptionsItem v-if="detail.errorMessage" label="错误信息" :span="2">
-            <span class="job-drawer__error">{{ detail.errorMessage }}</span>
-          </ElDescriptionsItem>
-        </ElDescriptions>
+    <NDrawerContent title="识别任务详情" closable>
+      <NSpin :show="loading">
+        <div class="job-drawer">
+          <template v-if="detail">
+            <NDescriptions :column="isMobile ? 1 : 2" bordered>
+              <NDescriptionsItem label="时间" :span="isMobile ? 1 : 2">
+                {{ formatDateTime(detail.createdAt) }}
+              </NDescriptionsItem>
+              <NDescriptionsItem label="用户">
+                {{ detail.user.nickname || detail.user.username }} (@{{ detail.user.username }})
+              </NDescriptionsItem>
+              <NDescriptionsItem label="状态">
+                <NTag :type="statusTag(detail.status).type" size="small" :bordered="false">
+                  {{ statusTag(detail.status).text }}
+                </NTag>
+              </NDescriptionsItem>
+              <NDescriptionsItem label="Provider">
+                {{ detail.provider || '—' }}
+              </NDescriptionsItem>
+              <NDescriptionsItem label="模型">
+                {{ detail.model || '—' }}
+              </NDescriptionsItem>
+              <NDescriptionsItem label="来源">
+                {{ detail.detectedSourceType || detail.requestedSourceType }}
+              </NDescriptionsItem>
+              <NDescriptionsItem label="识别项数">
+                {{ detail.itemCount }}
+              </NDescriptionsItem>
+              <NDescriptionsItem label="input tokens">
+                {{ formatNumber(detail.inputTokens) }}
+              </NDescriptionsItem>
+              <NDescriptionsItem label="output tokens">
+                {{ formatNumber(detail.outputTokens) }}
+              </NDescriptionsItem>
+              <NDescriptionsItem label="total tokens">
+                {{ formatNumber(detail.totalTokens) }}
+              </NDescriptionsItem>
+              <NDescriptionsItem label="成本">
+                {{ formatUsd(detail.costUSD, 6) }}
+              </NDescriptionsItem>
+              <NDescriptionsItem v-if="detail.errorMessage" label="错误信息" :span="isMobile ? 1 : 2">
+                <span class="job-drawer__error">{{ detail.errorMessage }}</span>
+              </NDescriptionsItem>
+            </NDescriptions>
 
-        <ElDivider content-position="left">
-          原图
-        </ElDivider>
-        <div v-if="detail.imageUrl" class="job-drawer__image">
-          <ElImage
-            :src="detail.imageUrl"
-            fit="contain"
-            :preview-src-list="[detail.imageUrl]"
-            hide-on-click-modal
-            class="job-drawer__image-el"
-          />
-          <div v-if="detail.imageExpiresAt" class="job-drawer__image-hint">
-            图片保留至 {{ formatDateTime(detail.imageExpiresAt) }}
-          </div>
+            <NDivider title-placement="left">
+              原图
+            </NDivider>
+            <div v-if="detail.imageUrl" class="job-drawer__image">
+              <NImage
+                :src="detail.imageUrl"
+                object-fit="contain"
+                class="job-drawer__image-el"
+              />
+              <div v-if="detail.imageExpiresAt" class="job-drawer__image-hint">
+                图片保留至 {{ formatDateTime(detail.imageExpiresAt) }}
+              </div>
+            </div>
+            <div v-else class="job-drawer__image-empty">
+              图片已清理或未上传
+            </div>
+
+            <NDivider title-placement="left">
+              识别项({{ detailItems.length }})
+            </NDivider>
+            <NTable v-if="detailItems.length" :bordered="false" size="small" striped>
+              <thead>
+                <tr>
+                  <th>名称</th>
+                  <th>原文</th>
+                  <th>分类</th>
+                  <th>数量</th>
+                  <th>保质期</th>
+                  <th>置信度</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idx) in detailItems" :key="idx">
+                  <td>{{ item.name }}</td>
+                  <td>{{ item.rawName || item.name }}</td>
+                  <td>{{ item.category || '—' }}</td>
+                  <td>
+                    <span v-if="item.quantity !== undefined">{{ item.quantity }}{{ item.unit || '' }}</span>
+                    <span v-else>—</span>
+                  </td>
+                  <td>{{ item.freshnessDays ?? '—' }}</td>
+                  <td>{{ item.confidence ? `${(item.confidence * 100).toFixed(0)}%` : '—' }}</td>
+                </tr>
+              </tbody>
+            </NTable>
+            <NEmpty v-else description="未识别到食材" :size="60" />
+
+            <template v-if="detailIgnored.length">
+              <NDivider title-placement="left">
+                忽略项({{ detailIgnored.length }})
+              </NDivider>
+              <NTable :bordered="false" size="small" striped>
+                <thead>
+                  <tr>
+                    <th>文本</th>
+                    <th>原因</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(item, idx) in detailIgnored" :key="idx">
+                    <td>{{ item.text }}</td>
+                    <td>{{ item.reason }}</td>
+                  </tr>
+                </tbody>
+              </NTable>
+            </template>
+
+            <template v-if="detailWarnings.length">
+              <NDivider title-placement="left">
+                警告
+              </NDivider>
+              <ul class="job-drawer__warnings">
+                <li v-for="(w, idx) in detailWarnings" :key="idx">
+                  {{ w }}
+                </li>
+              </ul>
+            </template>
+          </template>
+          <NEmpty v-else-if="!loading" description="选择任务后展示详情" />
         </div>
-        <div v-else class="job-drawer__image-empty">
-          图片已清理或未上传
-        </div>
-
-        <ElDivider content-position="left">
-          识别项（{{ detail.items.length }}）
-        </ElDivider>
-        <ElTable v-if="detail.items.length" :data="detail.items" size="small" stripe>
-          <ElTableColumn label="名称" prop="name" width="120" />
-          <ElTableColumn label="原文">
-            <template #default="{ row }">
-              {{ row.rawName || row.name }}
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="分类" prop="category" width="100" />
-          <ElTableColumn label="数量" width="100">
-            <template #default="{ row }">
-              <span v-if="row.quantity !== undefined">{{ row.quantity }}{{ row.unit || '' }}</span>
-              <span v-else>—</span>
-            </template>
-          </ElTableColumn>
-          <ElTableColumn label="保质期" prop="freshnessDays" width="80" align="center" />
-          <ElTableColumn label="置信度" width="80" align="center">
-            <template #default="{ row }">
-              {{ row.confidence ? `${(row.confidence * 100).toFixed(0)}%` : '—' }}
-            </template>
-          </ElTableColumn>
-        </ElTable>
-        <ElEmpty v-else description="未识别到食材" :image-size="60" />
-
-        <ElDivider v-if="detail.ignored.length" content-position="left">
-          忽略项（{{ detail.ignored.length }}）
-        </ElDivider>
-        <ElTable v-if="detail.ignored.length" :data="detail.ignored" size="small" stripe>
-          <ElTableColumn label="文本" prop="text" min-width="200" />
-          <ElTableColumn label="原因" prop="reason" min-width="200" />
-        </ElTable>
-
-        <ElDivider v-if="detail.warnings.length" content-position="left">
-          警告
-        </ElDivider>
-        <ul v-if="detail.warnings.length" class="job-drawer__warnings">
-          <li v-for="(w, idx) in detail.warnings" :key="idx">
-            {{ w }}
-          </li>
-        </ul>
-      </template>
-      <ElEmpty v-else-if="!loading" description="选择任务后展示详情" />
-    </div>
-  </ElDrawer>
+      </NSpin>
+    </NDrawerContent>
+  </NDrawer>
 </template>
 
 <style scoped lang="scss">

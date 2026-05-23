@@ -6,18 +6,6 @@ import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { computed, defineAsyncComponent } from 'vue'
 
-const props = withDefaults(defineProps<Props>(), {
-  height: 280,
-  dualYAxis: false,
-  loading: false,
-})
-
-// 一次性注册需要的 echarts 模块——保留全局副作用，多次实例化 LineChart 不会重复注册
-use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
-
-// vue-echarts 用 dynamic import 包一下避免 SSR / 初始化阻塞
-const VChart = defineAsyncComponent(() => import('vue-echarts'))
-
 interface SeriesItem {
   name: string
   data: number[]
@@ -32,6 +20,18 @@ interface Props {
   dualYAxis?: boolean
   loading?: boolean
 }
+
+const props = withDefaults(defineProps<Props>(), {
+  height: 280,
+  dualYAxis: false,
+  loading: false,
+})
+
+// 一次性注册需要的 echarts 模块——保留全局副作用，多次实例化 LineChart 不会重复注册
+use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent])
+
+// vue-echarts 用 dynamic import 包一下避免 SSR / 初始化阻塞
+const VChart = defineAsyncComponent(() => import('vue-echarts'))
 
 const option = computed<EChartsOption>(() => ({
   tooltip: { trigger: 'axis' },

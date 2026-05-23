@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DashboardOverview, DashboardTrendPoint } from '@/types/admin'
+import { NCard, NRadioButton, NRadioGroup, NSpin } from 'naive-ui'
 import { onMounted, ref } from 'vue'
 import { adminDashboardApi, type TrendDays } from '@/api/dashboard'
 import LineChart from '@/components/charts/LineChart.vue'
@@ -43,8 +44,8 @@ async function loadTrends() {
   }
 }
 
-function onDaysChange(value: TrendDays) {
-  days.value = value
+function onDaysChange(value: number) {
+  days.value = value as TrendDays
   void loadTrends()
 }
 
@@ -56,30 +57,36 @@ onMounted(() => {
 
 <template>
   <div class="dashboard">
-    <div v-loading="overviewLoading" class="dashboard__metrics">
-      <MetricCard variant="primary" label="累计用户" :value="formatNumber(overview?.userCount)" />
-      <MetricCard variant="success" label="7 日活跃用户" :value="formatNumber(overview?.activeUserCount7d)" hint="入库或识别动作触发" />
-      <MetricCard label="累计食材入库" :value="formatNumber(overview?.foodCount)" />
-      <MetricCard label="累计识别任务" :value="formatNumber(overview?.visionJobCount)" />
-      <MetricCard variant="warning" label="今日 AI 成本" :value="formatUsd(overview?.todayCostUSD)" />
-      <MetricCard label="累计 AI 成本" :value="formatUsd(overview?.totalCostUSD)" />
-    </div>
+    <NSpin :show="overviewLoading">
+      <div class="dashboard__metrics">
+        <MetricCard variant="primary" label="累计用户" :value="formatNumber(overview?.userCount)" />
+        <MetricCard variant="success" label="7 日活跃用户" :value="formatNumber(overview?.activeUserCount7d)" hint="入库或识别动作触发" />
+        <MetricCard label="累计食材入库" :value="formatNumber(overview?.foodCount)" />
+        <MetricCard label="累计识别任务" :value="formatNumber(overview?.visionJobCount)" />
+        <MetricCard variant="warning" label="今日 AI 成本" :value="formatUsd(overview?.todayCostUSD)" />
+        <MetricCard label="累计 AI 成本" :value="formatUsd(overview?.totalCostUSD)" />
+      </div>
+    </NSpin>
 
-    <ElCard shadow="never" class="dashboard__card">
+    <NCard :bordered="false" class="dashboard__card">
       <template #header>
         <div class="dashboard__card-header">
           <span class="dashboard__card-title">趋势分析</span>
-          <ElRadioGroup :model-value="days" size="small" @change="(v: string | number | boolean | undefined) => onDaysChange(v as TrendDays)">
-            <ElRadioButton :value="7">
+          <NRadioGroup
+            :value="days"
+            size="small"
+            @update:value="onDaysChange"
+          >
+            <NRadioButton :value="7">
               7 天
-            </ElRadioButton>
-            <ElRadioButton :value="30">
+            </NRadioButton>
+            <NRadioButton :value="30">
               30 天
-            </ElRadioButton>
-            <ElRadioButton :value="90">
+            </NRadioButton>
+            <NRadioButton :value="90">
               90 天
-            </ElRadioButton>
-          </ElRadioGroup>
+            </NRadioButton>
+          </NRadioGroup>
         </div>
       </template>
 
@@ -127,7 +134,7 @@ onMounted(() => {
           />
         </div>
       </div>
-    </ElCard>
+    </NCard>
   </div>
 </template>
 
@@ -140,7 +147,7 @@ onMounted(() => {
 
 .dashboard__metrics {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 16px;
 }
 
@@ -148,6 +155,8 @@ onMounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 .dashboard__card-title {
@@ -167,5 +176,12 @@ onMounted(() => {
   color: #4b5563;
   font-size: 14px;
   font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .dashboard__metrics {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
 }
 </style>
