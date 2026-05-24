@@ -1,14 +1,20 @@
 <script setup lang="ts">
-import type { DashboardOverview, DashboardTrendPoint } from '@/types/admin'
-import { NCard, NRadioButton, NRadioGroup, NSpin } from 'naive-ui'
+import type { AdminSettings, DashboardOverview, DashboardTrendPoint } from '@/types/admin'
+import { NAlert, NCard, NRadioButton, NRadioGroup, NSpace, NSpin, NSwitch, useMessage } from 'naive-ui'
 import { onMounted, ref } from 'vue'
 import { adminDashboardApi, type TrendDays } from '@/api/dashboard'
+import { adminSettingsApi } from '@/api/settings'
 import LineChart from '@/components/charts/LineChart.vue'
 import MetricCard from '@/components/common/MetricCard.vue'
+import { useAuthStore } from '@/stores/auth.store'
 import { formatNumber, formatUsd } from '@/utils/format'
 
+const auth = useAuthStore()
+const message = useMessage()
 const overview = ref<DashboardOverview | null>(null)
+const settings = ref<AdminSettings | null>(null)
 const overviewLoading = ref(false)
+const settingsLoading = ref(false)
 const days = ref<TrendDays>(7)
 
 const userTrend = ref<DashboardTrendPoint[]>([])
@@ -24,6 +30,35 @@ async function loadOverview() {
   }
   finally {
     overviewLoading.value = false
+  }
+}
+
+async function loadSettings() {
+  settingsLoading.value = true
+  try {
+    const res = await adminSettingsApi.get()
+    settings.value = res.data
+  }
+  finally {
+    settingsLoading.value = false
+  }
+}
+
+async function onRegistrationToggle(enabled: boolean) {
+  const previous = settings.value?.registration.enabled ?? true
+  if (settings.value)
+    settings.value.registration.enabled = enabled
+  try {
+    const res = await adminSettingsApi.updateRegistration(enabled)
+    if (settings.value)
+      settings.value.registration = res.data
+    message.success(enabled ? 'C 端注册已开启' : 'C 端注册已关闭')
+  }
+  catch (err: any) {
+    if (settings.value)
+      settings.value.registration.enabled = previous
+    if (err?.name !== 'ApiError')
+      message.error('注册开关更新失败')
   }
 }
 
@@ -51,12 +86,33 @@ function onDaysChange(value: number) {
 
 onMounted(() => {
   void loadOverview()
+  void loadSettings()
   void loadTrends()
 })
 </script>
 
 <template>
   <div class="dashboard">
+    <NCard :bordered="false" class="dashboard__card">
+      <template #header>
+        <div class="dashboard__card-header">
+          <span class="dashboard__card-title">系统设置</span>
+          <NSpace align="center" :size="10">
+            <span class="dashboard__setting-label">C 端注册</span>
+            <NSwitch
+              :value="settings?.registration.enabled ?? true"
+              :loading="settingsLoading"
+              :disabled="!auth.isSuperAdmin"
+              @update:value="onRegistrationToggle"
+            />
+          </NSpace>
+        </div>
+      </template>
+      <NAlert v-if="!auth.isSuperAdmin" type="info" :bordered="false">
+        只有 super_admin 可以修改注册开关，admin 账号仅可查看当前状态。
+      </NAlert>
+    </NCard>
+
     <NSpin :show="overviewLoading">
       <div class="dashboard__metrics">
         <MetricCard variant="primary" label="累计用户" :value="formatNumber(overview?.userCount)" />
@@ -163,6 +219,12 @@ onMounted(() => {
   font-size: 16px;
   font-weight: 700;
   color: #1f2937;
+}
+
+.dashboard__setting-label {
+  color: #4b5563;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .dashboard__charts {

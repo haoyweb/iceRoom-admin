@@ -58,6 +58,7 @@ export interface AdminUserListItem {
   banReason: string | null
   createdAt: string
   updatedAt: string
+  visionDailyLimit: number
   fridgeCount: number
   visionJobCount: number
 }
@@ -140,6 +141,12 @@ export interface AdminVisionStats {
     totalTokens: number
     totalCostUSD: string
   }>
+}
+
+export interface AdminSettings {
+  registration: {
+    enabled: boolean
+  }
 }
 
 export interface DashboardOverview {

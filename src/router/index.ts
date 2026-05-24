@@ -50,6 +50,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/vision-jobs/index.vue'),
         meta: { title: 'AI 识别监控', icon: 'PictureFilled' },
       },
+      {
+        path: 'settings',
+        name: 'settings',
+        component: () => import('@/views/settings/index.vue'),
+        meta: { title: '系统设置' },
+      },
     ],
   },
   {

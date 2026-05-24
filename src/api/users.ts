@@ -33,4 +33,10 @@ export const adminUsersApi = {
       { newPassword },
     )
   },
+  updateVisionDailyLimit(id: string, visionDailyLimit: number) {
+    return alovaClient.Patch<ApiResponse<{ id: string, visionDailyLimit: number }>>(
+      `/admin/users/${id}/vision-daily-limit`,
+      { visionDailyLimit },
+    )
+  },
 }

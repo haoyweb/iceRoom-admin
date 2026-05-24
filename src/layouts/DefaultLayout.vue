@@ -9,6 +9,7 @@ import {
   MenuOutline,
   PersonOutline,
   RestaurantOutline,
+  SettingsOutline,
   TrendingUpOutline,
 } from '@vicons/ionicons5'
 import { NAvatar, NBreadcrumb, NBreadcrumbItem, NButton, NDrawer, NDrawerContent, NDropdown, NIcon, NMenu, NTag } from 'naive-ui'
@@ -34,6 +35,7 @@ const menuOptions: MenuOption[] = [
   { label: '用户管理', key: 'users', icon: renderIcon(PersonOutline) },
   { label: '菜谱管理', key: 'recipes', icon: renderIcon(RestaurantOutline) },
   { label: 'AI 识别监控', key: 'vision-jobs', icon: renderIcon(ImageOutline) },
+  { label: '系统设置', key: 'settings', icon: renderIcon(SettingsOutline) },
 ]
 
 const activeMenu = computed<string>(() => {

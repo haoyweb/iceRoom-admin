@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { DataTableColumns } from 'naive-ui'
 import type { AdminVisionJobDetail, VisionRecognitionStatus } from '@/types/admin'
 import {
   NDescriptions,
@@ -166,7 +165,7 @@ function statusTag(status: VisionRecognitionStatus | undefined): { text: string,
                 </tr>
               </tbody>
             </NTable>
-            <NEmpty v-else description="未识别到食材" :size="60" />
+            <NEmpty v-else description="未识别到食材" size="small" />
 
             <template v-if="detailIgnored.length">
               <NDivider title-placement="left">

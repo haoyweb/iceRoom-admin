@@ -177,6 +177,34 @@ async function onResetPassword(row: AdminUserListItem) {
   }
 }
 
+async function onSetVisionDailyLimit(row: AdminUserListItem) {
+  const value = await prompt({
+    title: `设置 ${row.nickname || row.username} 的每日识别额度`,
+    placeholder: `当前 ${row.visionDailyLimit} 次，输入 0-100`,
+    positiveText: '保存',
+    validator: (val) => {
+      if (!val.trim())
+        return '请输入额度'
+      const limit = Number(val)
+      if (!Number.isInteger(limit) || limit < 0 || limit > 100)
+        return '额度需为 0-100 的整数'
+      return true
+    },
+  })
+  if (value === null)
+    return
+  try {
+    await adminUsersApi.updateVisionDailyLimit(row.id, Number(value))
+    message.success('识别额度已更新')
+    await loadList()
+  }
+  catch (err: any) {
+    if (err?.name === 'ApiError')
+      return
+    message.error('额度更新失败')
+  }
+}
+
 function roleTag(role: UserRole): { text: string, type: 'success' | 'warning' | 'error' | 'info' } {
   if (role === 'super_admin')
     return { text: 'super_admin', type: 'error' }
@@ -212,6 +240,7 @@ function buildRowMenuOptions(row: AdminUserListItem): DropdownOption[] {
       disabled,
       props: { style: row.status === 'active' ? 'color: var(--n-error-color);' : 'color: var(--n-success-color);' },
     },
+    { label: '设置识别额度', key: 'vision-limit' },
     { label: '重置密码', key: 'reset-password', disabled },
   ]
 }
@@ -225,6 +254,8 @@ function onRowAction(key: string, row: AdminUserListItem) {
     onUnban(row)
   else if (key === 'reset-password')
     void onResetPassword(row)
+  else if (key === 'vision-limit')
+    void onSetVisionDailyLimit(row)
 }
 
 const columns = computed<DataTableColumns<AdminUserListItem>>(() => [
@@ -263,6 +294,7 @@ const columns = computed<DataTableColumns<AdminUserListItem>>(() => [
   },
   { title: '冰箱', key: 'fridgeCount', width: 80, align: 'center' },
   { title: '识别次数', key: 'visionJobCount', width: 90, align: 'center' },
+  { title: '每日额度', key: 'visionDailyLimit', width: 90, align: 'center' },
   {
     title: '注册时间',
     key: 'createdAt',
@@ -282,6 +314,7 @@ const columns = computed<DataTableColumns<AdminUserListItem>>(() => [
           row.status === 'active'
             ? h(NButton, { text: true, type: 'error', size: 'small', disabled, onClick: (e: Event) => { e.stopPropagation(); void onBan(row) } }, { default: () => '封禁' })
             : h(NButton, { text: true, type: 'success', size: 'small', disabled, onClick: (e: Event) => { e.stopPropagation(); onUnban(row) } }, { default: () => '解封' }),
+          h(NButton, { text: true, size: 'small', onClick: (e: Event) => { e.stopPropagation(); void onSetVisionDailyLimit(row) } }, { default: () => '设置额度' }),
           h(NButton, { text: true, size: 'small', disabled, onClick: (e: Event) => { e.stopPropagation(); void onResetPassword(row) } }, { default: () => '重置密码' }),
         ],
       })
@@ -360,7 +393,7 @@ onMounted(loadList)
         :loading="loading"
         :pagination="pagination"
         :row-props="onRowProps"
-        :scroll-x="1100"
+        :scroll-x="1200"
         :bordered="false"
         striped
         remote
@@ -393,7 +426,7 @@ onMounted(loadList)
               <span>{{ formatDateTime(row.createdAt) }}</span>
             </div>
             <div class="user-card__counters">
-              冰箱 {{ row.fridgeCount }} · 识别 {{ row.visionJobCount }}
+              冰箱 {{ row.fridgeCount }} · 识别 {{ row.visionJobCount }} · 每日额度 {{ row.visionDailyLimit }}
             </div>
           </div>
           <NDropdown

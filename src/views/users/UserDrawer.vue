@@ -97,6 +97,9 @@ function statusTag(status: UserStatus | undefined): { text: string, type: 'succe
             <NDescriptionsItem label="识别次数">
               {{ detail.visionJobCount }}
             </NDescriptionsItem>
+            <NDescriptionsItem label="每日识别额度">
+              {{ detail.visionDailyLimit }} 次
+            </NDescriptionsItem>
             <NDescriptionsItem label="注册时间">
               {{ formatDateTime(detail.createdAt) }}
             </NDescriptionsItem>
