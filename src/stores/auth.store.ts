@@ -52,6 +52,23 @@ export const useAuthStore = defineStore('auth', {
       this.userInfo = res.data
     },
 
+    async refresh() {
+      if (!this.refreshToken) {
+        this.logout()
+        throw new Error('登录已过期')
+      }
+
+      const res = await authApi.refresh(this.refreshToken)
+      this.token = res.data.token
+      this.refreshToken = res.data.refreshToken
+      await this.fetchProfile()
+
+      if (!this.isActive || !this.isAdmin) {
+        this.logout()
+        throw new Error('该账号无运营后台访问权限')
+      }
+    },
+
     logout() {
       this.token = ''
       this.refreshToken = ''

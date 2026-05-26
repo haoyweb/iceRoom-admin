@@ -50,23 +50,23 @@ onMounted(loadSettings)
           只有 super_admin 可以修改系统设置，admin 账号仅可查看当前状态。
         </NAlert>
         <div class="setting-item">
-        <div class="setting-item__content">
-          <div class="setting-item__title">
-            用户注册
+          <div class="setting-item__content">
+            <div class="setting-item__title">
+              用户注册
+            </div>
+            <NText depth="3">
+              关闭后，小程序新用户不能自行注册；已有用户仍可登录使用。
+            </NText>
           </div>
-          <NText depth="3">
-            关闭后，小程序新用户不能自行注册；已有用户仍可登录使用。
-          </NText>
-        </div>
-        <NSpace align="center" :size="12">
-          <NText :type="registrationEnabled ? 'success' : 'error'">
-            {{ registrationEnabled ? '已开放' : '已关闭' }}
-          </NText>
-          <NSwitch v-model:value="registrationEnabled" :disabled="saving || !auth.isSuperAdmin" />
-          <NButton type="primary" :loading="saving" :disabled="!auth.isSuperAdmin" @click="saveRegistrationSetting">
-            保存
-          </NButton>
-        </NSpace>
+          <NSpace align="center" :size="12">
+            <NText :type="registrationEnabled ? 'success' : 'error'">
+              {{ registrationEnabled ? '已开放' : '已关闭' }}
+            </NText>
+            <NSwitch v-model:value="registrationEnabled" :disabled="saving || !auth.isSuperAdmin" />
+            <NButton v-if="auth.isSuperAdmin" type="primary" :loading="saving" @click="saveRegistrationSetting">
+              保存
+            </NButton>
+          </NSpace>
         </div>
       </template>
     </NCard>

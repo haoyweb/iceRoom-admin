@@ -3,6 +3,7 @@ import type { DataTableColumns, DropdownOption } from 'naive-ui'
 import type { AdminUserListItem, UserRole, UserStatus } from '@/types/admin'
 import { EllipsisHorizontalOutline } from '@vicons/ionicons5'
 import {
+  NAlert,
   NAvatar,
   NButton,
   NCard,
@@ -10,6 +11,8 @@ import {
   NDropdown,
   NIcon,
   NInput,
+  NRadio,
+  NRadioGroup,
   NSelect,
   NSpace,
   NTag,
@@ -18,8 +21,8 @@ import {
 } from 'naive-ui'
 import { computed, h, onMounted, reactive, ref } from 'vue'
 import { adminUsersApi, type ListUsersParams } from '@/api/users'
-import { useScreen } from '@/composables/useScreen'
 import { usePromptDialog } from '@/composables/usePromptDialog'
+import { useScreen } from '@/composables/useScreen'
 import { useAuthStore } from '@/stores/auth.store'
 import { formatDateTime } from '@/utils/format'
 import UserDrawer from './UserDrawer.vue'
@@ -87,6 +90,14 @@ function isSelf(id: string) {
 function isSuperAdmin(role: UserRole) {
   return role === 'super_admin'
 }
+
+const canManageSensitiveUserActions = computed(() => auth.isSuperAdmin)
+
+const editableRoleOptions: Array<{ label: string, value: UserRole }> = [
+  { label: '普通用户 user', value: 'user' },
+  { label: '管理员 admin', value: 'admin' },
+  { label: '超级管理员 super_admin', value: 'super_admin' },
+]
 
 async function onBan(row: AdminUserListItem) {
   if (isSelf(row.id)) {
@@ -177,6 +188,56 @@ async function onResetPassword(row: AdminUserListItem) {
   }
 }
 
+function onUpdateRole(row: AdminUserListItem) {
+  if (!auth.isSuperAdmin) {
+    message.warning('修改角色需要 super_admin 权限')
+    return
+  }
+  if (isSelf(row.id)) {
+    message.warning('不能修改自己的角色')
+    return
+  }
+  if (isSuperAdmin(row.role)) {
+    message.warning('super_admin 角色不能在后台修改')
+    return
+  }
+
+  const nextRole = ref<UserRole>(row.role)
+  dialog.warning({
+    title: `修改 ${row.nickname || row.username} 的角色`,
+    content: () => h(NRadioGroup, {
+      value: nextRole.value,
+      onUpdateValue: (value: UserRole) => {
+        nextRole.value = value
+      },
+    }, {
+      default: () => editableRoleOptions.map(option => h(NRadio, { value: option.value }, { default: () => option.label })),
+    }),
+    positiveText: '保存',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      if (nextRole.value === row.role) {
+        message.info('角色未变化')
+        return
+      }
+      if (row.status === 'banned' && nextRole.value !== 'user') {
+        message.warning('已封禁用户不能提权，请先解封')
+        return false
+      }
+      try {
+        await adminUsersApi.updateRole(row.id, nextRole.value)
+        message.success('角色已更新')
+        await loadList()
+      }
+      catch (err: any) {
+        if (err?.name === 'ApiError')
+          return
+        message.error('角色更新失败')
+      }
+    },
+  })
+}
+
 async function onSetVisionDailyLimit(row: AdminUserListItem) {
   const value = await prompt({
     title: `设置 ${row.nickname || row.username} 的每日识别额度`,
@@ -230,9 +291,13 @@ const statusOptions = [
   { label: '已封禁', value: 'banned' },
 ]
 
+function canChangeRole(row: AdminUserListItem) {
+  return auth.isSuperAdmin && !isSelf(row.id) && !isSuperAdmin(row.role)
+}
+
 function buildRowMenuOptions(row: AdminUserListItem): DropdownOption[] {
   const disabled = isSelf(row.id) || isSuperAdmin(row.role)
-  return [
+  const options: DropdownOption[] = [
     { label: '详情', key: 'detail' },
     {
       label: row.status === 'active' ? '封禁' : '解封',
@@ -240,9 +305,17 @@ function buildRowMenuOptions(row: AdminUserListItem): DropdownOption[] {
       disabled,
       props: { style: row.status === 'active' ? 'color: var(--n-error-color);' : 'color: var(--n-success-color);' },
     },
-    { label: '设置识别额度', key: 'vision-limit' },
-    { label: '重置密码', key: 'reset-password', disabled },
   ]
+
+  if (canManageSensitiveUserActions.value) {
+    options.push(
+      { label: '修改角色', key: 'update-role', disabled: !canChangeRole(row) },
+      { label: '设置识别额度', key: 'vision-limit', disabled },
+      { label: '重置密码', key: 'reset-password', disabled },
+    )
+  }
+
+  return options
 }
 
 function onRowAction(key: string, row: AdminUserListItem) {
@@ -256,6 +329,38 @@ function onRowAction(key: string, row: AdminUserListItem) {
     void onResetPassword(row)
   else if (key === 'vision-limit')
     void onSetVisionDailyLimit(row)
+  else if (key === 'update-role')
+    onUpdateRole(row)
+}
+
+function stopAndOpenDetail(event: Event, row: AdminUserListItem) {
+  event.stopPropagation()
+  openDetail(row)
+}
+
+function stopAndBan(event: Event, row: AdminUserListItem) {
+  event.stopPropagation()
+  void onBan(row)
+}
+
+function stopAndUnban(event: Event, row: AdminUserListItem) {
+  event.stopPropagation()
+  onUnban(row)
+}
+
+function stopAndUpdateRole(event: Event, row: AdminUserListItem) {
+  event.stopPropagation()
+  onUpdateRole(row)
+}
+
+function stopAndSetVisionDailyLimit(event: Event, row: AdminUserListItem) {
+  event.stopPropagation()
+  void onSetVisionDailyLimit(row)
+}
+
+function stopAndResetPassword(event: Event, row: AdminUserListItem) {
+  event.stopPropagation()
+  void onResetPassword(row)
 }
 
 const columns = computed<DataTableColumns<AdminUserListItem>>(() => [
@@ -308,16 +413,22 @@ const columns = computed<DataTableColumns<AdminUserListItem>>(() => [
     fixed: 'right',
     render: (row) => {
       const disabled = isSelf(row.id) || isSuperAdmin(row.role)
-      return h(NSpace, { size: 4 }, {
-        default: () => [
-          h(NButton, { text: true, type: 'primary', size: 'small', onClick: (e: Event) => { e.stopPropagation(); openDetail(row) } }, { default: () => '详情' }),
-          row.status === 'active'
-            ? h(NButton, { text: true, type: 'error', size: 'small', disabled, onClick: (e: Event) => { e.stopPropagation(); void onBan(row) } }, { default: () => '封禁' })
-            : h(NButton, { text: true, type: 'success', size: 'small', disabled, onClick: (e: Event) => { e.stopPropagation(); onUnban(row) } }, { default: () => '解封' }),
-          h(NButton, { text: true, size: 'small', onClick: (e: Event) => { e.stopPropagation(); void onSetVisionDailyLimit(row) } }, { default: () => '设置额度' }),
-          h(NButton, { text: true, size: 'small', disabled, onClick: (e: Event) => { e.stopPropagation(); void onResetPassword(row) } }, { default: () => '重置密码' }),
-        ],
-      })
+      const actions = [
+        h(NButton, { text: true, type: 'primary', size: 'small', onClick: (event: Event) => stopAndOpenDetail(event, row) }, { default: () => '详情' }),
+        row.status === 'active'
+          ? h(NButton, { text: true, type: 'error', size: 'small', disabled, onClick: (event: Event) => stopAndBan(event, row) }, { default: () => '封禁' })
+          : h(NButton, { text: true, type: 'success', size: 'small', disabled, onClick: (event: Event) => stopAndUnban(event, row) }, { default: () => '解封' }),
+      ]
+
+      if (canManageSensitiveUserActions.value) {
+        actions.push(
+          h(NButton, { text: true, size: 'small', disabled: !canChangeRole(row), onClick: (event: Event) => stopAndUpdateRole(event, row) }, { default: () => '修改角色' }),
+          h(NButton, { text: true, size: 'small', disabled, onClick: (event: Event) => stopAndSetVisionDailyLimit(event, row) }, { default: () => '设置额度' }),
+          h(NButton, { text: true, size: 'small', disabled, onClick: (event: Event) => stopAndResetPassword(event, row) }, { default: () => '重置密码' }),
+        )
+      }
+
+      return h(NSpace, { size: 4 }, { default: () => actions })
     },
   },
 ])
@@ -352,6 +463,10 @@ onMounted(loadList)
 <template>
   <div class="users-page">
     <NCard :bordered="false">
+      <NAlert v-if="!canManageSensitiveUserActions" type="info" :bordered="false" class="users-page__permission-tip">
+        当前 admin 账号可进行日常封禁/解封和查看操作，重置密码、设置识别额度需要 super_admin 权限。
+      </NAlert>
+
       <div class="users-page__filter">
         <NInput
           v-model:value="filter.keyword"
@@ -436,7 +551,9 @@ onMounted(loadList)
           >
             <NButton quaternary circle size="small" @click.stop>
               <template #icon>
-                <NIcon :size="18"><EllipsisHorizontalOutline /></NIcon>
+                <NIcon :size="18">
+                  <EllipsisHorizontalOutline />
+                </NIcon>
               </template>
             </NButton>
           </NDropdown>
@@ -474,6 +591,10 @@ onMounted(loadList)
 <style scoped lang="scss">
 .users-page {
   width: 100%;
+}
+
+.users-page__permission-tip {
+  margin-bottom: 16px;
 }
 
 .users-page__filter {

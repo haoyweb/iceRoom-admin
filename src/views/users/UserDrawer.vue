@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { AdminUserDetail, UserRole, UserStatus } from '@/types/admin'
-import { NDescriptions, NDescriptionsItem, NDrawer, NDrawerContent, NEmpty, NSpin, NTag } from 'naive-ui'
+import { NAlert, NDescriptions, NDescriptionsItem, NDrawer, NDrawerContent, NEmpty, NSpin, NTag } from 'naive-ui'
 import { computed, ref, watch } from 'vue'
 import { adminUsersApi } from '@/api/users'
 import { useScreen } from '@/composables/useScreen'
+import { useAuthStore } from '@/stores/auth.store'
 import { formatDateTime } from '@/utils/format'
 
 interface Props {
@@ -17,6 +18,7 @@ const emit = defineEmits<{
   'changed': []
 }>()
 
+const auth = useAuthStore()
 const detail = ref<AdminUserDetail | null>(null)
 const loading = ref(false)
 const { isMobile } = useScreen()
@@ -73,6 +75,10 @@ function statusTag(status: UserStatus | undefined): { text: string, type: 'succe
     <NDrawerContent title="用户详情" closable>
       <NSpin :show="loading">
         <div class="user-drawer">
+          <NAlert v-if="detail && !auth.isSuperAdmin" type="info" :bordered="false" class="user-drawer__permission-tip">
+            当前账号可查看用户详情；每日识别额度、密码等敏感信息调整需要 super_admin 权限。
+          </NAlert>
+
           <NDescriptions v-if="detail" :column="isMobile ? 1 : 2" bordered>
             <NDescriptionsItem label="用户名">
               {{ detail.username }}
@@ -120,5 +126,9 @@ function statusTag(status: UserStatus | undefined): { text: string, type: 'succe
 <style scoped lang="scss">
 .user-drawer {
   min-height: 200px;
+}
+
+.user-drawer__permission-tip {
+  margin-bottom: 16px;
 }
 </style>

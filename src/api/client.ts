@@ -18,6 +18,8 @@ import { message } from '@/utils/discrete-api'
  */
 
 let bailOutRunning = false
+let refreshingPromise: Promise<void> | null = null
+const replayedMethods = new WeakSet<object>()
 
 async function bailOutToLogin(reason: string) {
   if (bailOutRunning)
@@ -31,9 +33,8 @@ async function bailOutToLogin(reason: string) {
     const { default: router } = await import('@/router')
     useAuthStore().logout()
     message.warning('登录已过期，请重新登录')
-    // 避免 push 到同一个 /login 报 NavigationDuplicated
     if (router.currentRoute.value.name !== 'login') {
-      await router.replace({ name: 'login' })
+      await router.replace({ name: 'login', query: { redirect: router.currentRoute.value.fullPath } })
     }
   }
   finally {
@@ -45,6 +46,16 @@ function isAuthEndpoint(url: string) {
   return url === '/auth/login' || url === '/auth/refresh' || url === '/auth/register'
 }
 
+async function refreshOnce() {
+  if (!refreshingPromise) {
+    const { useAuthStore } = await import('@/stores/auth.store')
+    refreshingPromise = useAuthStore().refresh().finally(() => {
+      refreshingPromise = null
+    })
+  }
+  return refreshingPromise
+}
+
 export const alovaClient = createAlova({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   statesHook: VueHook,
@@ -53,6 +64,10 @@ export const alovaClient = createAlova({
   cacheFor: null,
 
   async beforeRequest(method) {
+    if (!isAuthEndpoint(method.url) && refreshingPromise) {
+      await refreshingPromise.catch(() => {})
+    }
+
     const { useAuthStore } = await import('@/stores/auth.store')
     const auth = useAuthStore()
     const token = auth.token
@@ -70,16 +85,23 @@ export const alovaClient = createAlova({
       if (response.status === 401) {
         const json = await response.json().catch(() => ({})) as ApiResponse<null>
         const msg = json.message || '登录已过期'
-        if (!isAuthEndpoint(method.url)) {
-          await bailOutToLogin('401')
-        }
-        else {
-          // 鉴权端点（login/register/refresh）401 时不能走 bailOut（用户已经在登录页），
-          // 但必须显式弹 toast——下游 catch 看到 ApiError 就跳过自己的 toast（约定：
-          // 业务消息由这里集中弹），漏掉这里就会出现「点了登录没反应」的死寂体验。
+        if (isAuthEndpoint(method.url)) {
           message.error(msg)
+          throw new ApiError(msg, response.status, json)
         }
-        throw new ApiError(msg, response.status, json)
+        if (replayedMethods.has(method)) {
+          await bailOutToLogin('重放后仍 401')
+          throw new ApiError(msg, response.status, json)
+        }
+        try {
+          await refreshOnce()
+          replayedMethods.add(method)
+          return await method.send(true)
+        }
+        catch {
+          await bailOutToLogin('refresh 失败')
+          throw new ApiError(msg, response.status, json)
+        }
       }
 
       if (response.status === 403) {
@@ -102,7 +124,17 @@ export const alovaClient = createAlova({
         const msg = json.message || '请求失败'
         // 业务码 401xx 类（10101..10104 等）也按鉴权失败处理
         if (json.code >= 10100 && json.code < 10200) {
-          if (!isAuthEndpoint(method.url)) {
+          if (!isAuthEndpoint(method.url) && !replayedMethods.has(method)) {
+            try {
+              await refreshOnce()
+              replayedMethods.add(method)
+              return await method.send(true)
+            }
+            catch {
+              await bailOutToLogin(`业务码 ${json.code}`)
+            }
+          }
+          else if (!isAuthEndpoint(method.url)) {
             await bailOutToLogin(`业务码 ${json.code}`)
           }
         }

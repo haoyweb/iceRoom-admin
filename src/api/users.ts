@@ -39,4 +39,10 @@ export const adminUsersApi = {
       { visionDailyLimit },
     )
   },
+  updateRole(id: string, role: UserRole) {
+    return alovaClient.Patch<ApiResponse<{ id: string, role: UserRole }>>(
+      `/admin/users/${id}/role`,
+      { role },
+    )
+  },
 }
