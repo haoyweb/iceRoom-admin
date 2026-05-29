@@ -15,5 +15,5 @@ export default antfu({
     'vue/multi-word-component-names': 'off',
     'vue/component-name-in-template-casing': ['error', 'PascalCase'],
   },
-  ignores: ['dist', 'node_modules', '*.config.js', 'public'],
+  ignores: ['dist', 'node_modules', '*.config.js', 'public', '.serena'],
 })

@@ -1,5 +1,5 @@
-import { h, ref } from 'vue'
 import { NAlert, NInput, useDialog } from 'naive-ui'
+import { h, ref } from 'vue'
 
 interface PromptOptions {
   title: string
@@ -44,7 +44,7 @@ export function usePromptDialog() {
             type: opts.inputType ?? 'text',
             placeholder: opts.placeholder,
             value: value.value,
-            'onUpdate:value': (v: string) => {
+            onUpdateValue: (v: string) => {
               value.value = v
               errorMsg.value = ''
             },

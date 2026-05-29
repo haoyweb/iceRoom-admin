@@ -326,7 +326,7 @@ onMounted(load)
               v-model:value="form.stepImagesJson"
               type="textarea"
               :rows="4"
-              placeholder='形如 { "3": ["https://..."], "9": ["https://..."] },空表示无'
+              placeholder="形如 { &quot;3&quot;: [&quot;https://...&quot;], &quot;9&quot;: [&quot;https://...&quot;] },空表示无"
             />
           </NFormItem>
           <NFormItem label="用料计算 JSON" path="portionsJson">
@@ -334,7 +334,7 @@ onMounted(load)
               v-model:value="form.portionsJson"
               type="textarea"
               :rows="4"
-              placeholder='形如 { "description": "...", "items": [{ "name": "白糖", "amount": "10 克" }] }'
+              placeholder="形如 { &quot;description&quot;: &quot;...&quot;, &quot;items&quot;: [{ &quot;name&quot;: &quot;白糖&quot;, &quot;amount&quot;: &quot;10 克&quot; }] }"
             />
           </NFormItem>
 

@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import type { Component } from 'vue'
 import type { DropdownOption, MenuOption } from 'naive-ui'
+import type { Component } from 'vue'
 import {
   ChevronDownOutline,
   CloseOutline,
   ImageOutline,
   LogOutOutline,
   MenuOutline,
+  NotificationsOutline,
   PersonOutline,
   RestaurantOutline,
   SettingsOutline,
@@ -35,6 +36,7 @@ const menuOptions: MenuOption[] = [
   { label: '用户管理', key: 'users', icon: renderIcon(PersonOutline) },
   { label: '菜谱管理', key: 'recipes', icon: renderIcon(RestaurantOutline) },
   { label: 'AI 识别监控', key: 'vision-jobs', icon: renderIcon(ImageOutline) },
+  { label: '通知管理', key: 'notifications', icon: renderIcon(NotificationsOutline) },
   { label: '系统设置', key: 'settings', icon: renderIcon(SettingsOutline) },
 ]
 
@@ -144,7 +146,9 @@ function onUserDropdownSelect(key: string) {
           @click="mobileDrawerVisible = true"
         >
           <template #icon>
-            <NIcon :size="22"><MenuOutline /></NIcon>
+            <NIcon :size="22">
+              <MenuOutline />
+            </NIcon>
           </template>
         </NButton>
 
@@ -191,7 +195,9 @@ function onUserDropdownSelect(key: string) {
                 admin
               </NTag>
             </span>
-            <NIcon v-if="!isMobile" :size="14"><ChevronDownOutline /></NIcon>
+            <NIcon v-if="!isMobile" :size="14">
+              <ChevronDownOutline />
+            </NIcon>
           </span>
         </NDropdown>
       </header>
