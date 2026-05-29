@@ -51,6 +51,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: 'AI 识别监控', icon: 'PictureFilled' },
       },
       {
+        path: 'notifications',
+        name: 'notifications',
+        component: () => import('@/views/notifications/index.vue'),
+        meta: { title: '通知管理' },
+      },
+      {
         path: 'settings',
         name: 'settings',
         component: () => import('@/views/settings/index.vue'),

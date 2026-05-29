@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { zhCN, dateZhCN, NConfigProvider, NDialogProvider, NLoadingBarProvider, NMessageProvider } from 'naive-ui'
+import { dateZhCN, NConfigProvider, NDialogProvider, NLoadingBarProvider, NMessageProvider, zhCN } from 'naive-ui'
 import { themeOverrides } from '@/styles/naive-theme'
 </script>
 

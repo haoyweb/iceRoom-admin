@@ -11,6 +11,8 @@ export type VisionRecognitionStatus = 'pending' | 'success' | 'failed'
 
 export type RecipeDifficulty = 'easy' | 'medium' | 'hard'
 
+export type NotificationPublicationStatus = 'pending' | 'publishing' | 'completed' | 'partial_failed' | 'failed'
+
 /**
  * 后端 ResponseInterceptor 统一包装格式。
  * data 在错误时可能为 null，正常返回时一定有值。
@@ -91,6 +93,24 @@ export interface AdminRecipeDetail extends AdminRecipeListItem {
   imageSourceUrl: string | null
   sourceRefUrl: string | null
   createdAt: string
+}
+
+export interface AdminNotificationPublicationListItem {
+  id: string
+  title: string
+  content: string
+  status: NotificationPublicationStatus
+  targetCount: number
+  successCount: number
+  failedCount: number
+  readCount: number
+  unreadCount: number
+  dedupeKey: string
+  operatorId: string
+  operatorName: string | null
+  errorMessage: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 export interface AdminVisionJobListItem {

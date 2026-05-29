@@ -178,8 +178,24 @@ const columns = computed<DataTableColumns<AdminRecipeListItem>>(() => [
     fixed: 'right',
     render: row => h(NSpace, { size: 4 }, {
       default: () => [
-        h(NButton, { text: true, type: 'primary', size: 'small', onClick: (e: Event) => { e.stopPropagation(); goEdit(row) } }, { default: () => '编辑' }),
-        h(NButton, { text: true, type: 'error', size: 'small', onClick: (e: Event) => { e.stopPropagation(); onRemove(row) } }, { default: () => '删除' }),
+        h(NButton, {
+          text: true,
+          type: 'primary',
+          size: 'small',
+          onClick: (e: Event) => {
+            e.stopPropagation()
+            goEdit(row)
+          },
+        }, { default: () => '编辑' }),
+        h(NButton, {
+          text: true,
+          type: 'error',
+          size: 'small',
+          onClick: (e: Event) => {
+            e.stopPropagation()
+            onRemove(row)
+          },
+        }, { default: () => '删除' }),
       ],
     }),
   },

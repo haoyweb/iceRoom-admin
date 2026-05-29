@@ -218,7 +218,10 @@ const columns = computed<DataTableColumns<AdminVisionJobListItem>>(() => [
       text: true,
       type: 'primary',
       size: 'small',
-      onClick: (e: Event) => { e.stopPropagation(); openDetail(row) },
+      onClick: (e: Event) => {
+        e.stopPropagation()
+        openDetail(row)
+      },
     }, { default: () => '详情' }),
   },
 ])
