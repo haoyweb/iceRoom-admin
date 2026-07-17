@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import type { AdminSettings, DashboardOverview, DashboardTrendPoint } from '@/types/admin'
 import { NAlert, NButton, NCard, NEmpty, NRadioButton, NRadioGroup, NSpace, NSpin, NSwitch, useMessage } from 'naive-ui'
-import { computed, onMounted, ref } from 'vue'
+import { computed, defineAsyncComponent, onMounted, ref } from 'vue'
 import { adminDashboardApi, type TrendDays } from '@/api/dashboard'
 import { adminSettingsApi } from '@/api/settings'
-import LineChart from '@/components/charts/LineChart.vue'
 import MetricCard from '@/components/common/MetricCard.vue'
 import { useAuthStore } from '@/stores/auth.store'
 import { formatNumber, formatUsd } from '@/utils/format'
@@ -29,6 +28,7 @@ const userTrendError = ref('')
 const foodTrendError = ref('')
 const visionTrendError = ref('')
 
+const LineChart = defineAsyncComponent(() => import('@/components/charts/LineChart.vue'))
 const trendsLoading = computed(() => userTrendLoading.value || foodTrendLoading.value || visionTrendLoading.value)
 
 async function loadOverview() {
@@ -76,6 +76,24 @@ async function onRegistrationToggle(enabled: boolean) {
       settings.value.registration.enabled = previous
     if (err?.name !== 'ApiError')
       message.error('注册开关更新失败')
+  }
+}
+
+async function onVisionRecognitionToggle(enabled: boolean) {
+  const previous = settings.value?.visionRecognition.enabled ?? true
+  if (settings.value)
+    settings.value.visionRecognition.enabled = enabled
+  try {
+    const res = await adminSettingsApi.updateVisionRecognition(enabled)
+    if (settings.value)
+      settings.value.visionRecognition = res.data
+    message.success(enabled ? '拍照识别已开启' : '拍照识别已关闭')
+  }
+  catch (err: any) {
+    if (settings.value)
+      settings.value.visionRecognition.enabled = previous
+    if (err?.name !== 'ApiError')
+      message.error('拍照识别开关更新失败')
   }
 }
 
@@ -150,14 +168,25 @@ onMounted(() => {
       <template #header>
         <div class="dashboard__card-header">
           <span class="dashboard__card-title">系统设置</span>
-          <NSpace align="center" :size="10">
-            <span class="dashboard__setting-label">C 端注册</span>
-            <NSwitch
-              :value="settings?.registration.enabled ?? true"
-              :loading="settingsLoading"
-              :disabled="!auth.isSuperAdmin"
-              @update:value="onRegistrationToggle"
-            />
+          <NSpace align="center" :size="14">
+            <NSpace align="center" :size="8">
+              <span class="dashboard__setting-label">C 端注册</span>
+              <NSwitch
+                :value="settings?.registration.enabled ?? true"
+                :loading="settingsLoading"
+                :disabled="!auth.isSuperAdmin"
+                @update:value="onRegistrationToggle"
+              />
+            </NSpace>
+            <NSpace align="center" :size="8">
+              <span class="dashboard__setting-label">拍照识别</span>
+              <NSwitch
+                :value="settings?.visionRecognition.enabled ?? true"
+                :loading="settingsLoading"
+                :disabled="!auth.isSuperAdmin"
+                @update:value="onVisionRecognitionToggle"
+              />
+            </NSpace>
           </NSpace>
         </div>
       </template>
@@ -165,7 +194,7 @@ onMounted(() => {
         {{ settingsError }}
       </NAlert>
       <NAlert v-else-if="!auth.isSuperAdmin" type="info" :bordered="false">
-        只有 super_admin 可以修改注册开关，admin 账号仅可查看当前状态。
+        只有 super_admin 可以修改系统开关，admin 账号仅可查看当前状态。
       </NAlert>
     </NCard>
 

@@ -167,6 +167,9 @@ export interface AdminSettings {
   registration: {
     enabled: boolean
   }
+  visionRecognition: {
+    enabled: boolean
+  }
 }
 
 export interface DashboardOverview {

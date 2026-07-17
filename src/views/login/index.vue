@@ -42,9 +42,9 @@ async function onSubmit() {
   loading.value = true
   try {
     await auth.login({ username: form.username, password: form.password })
-    message.success(`欢迎回来，${auth.userInfo?.nickname || auth.userInfo?.username}`)
     const redirect = (route.query.redirect as string) || '/dashboard'
-    router.replace(redirect)
+    await router.replace(redirect)
+    message.success(`欢迎回来，${auth.userInfo?.nickname || auth.userInfo?.username}`)
   }
   catch (err: any) {
     // ApiError 的业务 message 已在 client.ts 弹过 toast；其它本地校验失败这里补一道

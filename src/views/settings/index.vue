@@ -7,14 +7,17 @@ import { useAuthStore } from '@/stores/auth.store'
 const auth = useAuthStore()
 const message = useMessage()
 const loading = ref(false)
-const saving = ref(false)
+const savingRegistration = ref(false)
+const savingVisionRecognition = ref(false)
 const registrationEnabled = ref(true)
+const visionRecognitionEnabled = ref(true)
 
 async function loadSettings() {
   loading.value = true
   try {
     const res = await adminSettingsApi.get()
     registrationEnabled.value = res.data.registration.enabled
+    visionRecognitionEnabled.value = res.data.visionRecognition.enabled
   }
   finally {
     loading.value = false
@@ -22,7 +25,7 @@ async function loadSettings() {
 }
 
 async function saveRegistrationSetting() {
-  saving.value = true
+  savingRegistration.value = true
   try {
     const res = await adminSettingsApi.updateRegistration(registrationEnabled.value)
     registrationEnabled.value = res.data.enabled
@@ -34,7 +37,24 @@ async function saveRegistrationSetting() {
     await loadSettings()
   }
   finally {
-    saving.value = false
+    savingRegistration.value = false
+  }
+}
+
+async function saveVisionRecognitionSetting() {
+  savingVisionRecognition.value = true
+  try {
+    const res = await adminSettingsApi.updateVisionRecognition(visionRecognitionEnabled.value)
+    visionRecognitionEnabled.value = res.data.enabled
+    message.success('拍照识别开关已保存')
+  }
+  catch (err: any) {
+    if (err?.name !== 'ApiError')
+      message.error('保存失败')
+    await loadSettings()
+  }
+  finally {
+    savingVisionRecognition.value = false
   }
 }
 
@@ -49,25 +69,47 @@ onMounted(loadSettings)
         <NAlert v-if="!auth.isSuperAdmin" type="info" :bordered="false" class="settings-page__alert">
           只有 super_admin 可以修改系统设置，admin 账号仅可查看当前状态。
         </NAlert>
-        <div class="setting-item">
-          <div class="setting-item__content">
-            <div class="setting-item__title">
-              用户注册
+        <NSpace vertical :size="18">
+          <div class="setting-item">
+            <div class="setting-item__content">
+              <div class="setting-item__title">
+                用户注册
+              </div>
+              <NText depth="3">
+                关闭后，小程序新用户不能自行注册；已有用户仍可登录使用。
+              </NText>
             </div>
-            <NText depth="3">
-              关闭后，小程序新用户不能自行注册；已有用户仍可登录使用。
-            </NText>
+            <NSpace align="center" :size="12">
+              <NText :type="registrationEnabled ? 'success' : 'error'">
+                {{ registrationEnabled ? '已开放' : '已关闭' }}
+              </NText>
+              <NSwitch v-model:value="registrationEnabled" :disabled="savingRegistration || !auth.isSuperAdmin" />
+              <NButton v-if="auth.isSuperAdmin" type="primary" :loading="savingRegistration" @click="saveRegistrationSetting">
+                保存
+              </NButton>
+            </NSpace>
           </div>
-          <NSpace align="center" :size="12">
-            <NText :type="registrationEnabled ? 'success' : 'error'">
-              {{ registrationEnabled ? '已开放' : '已关闭' }}
-            </NText>
-            <NSwitch v-model:value="registrationEnabled" :disabled="saving || !auth.isSuperAdmin" />
-            <NButton v-if="auth.isSuperAdmin" type="primary" :loading="saving" @click="saveRegistrationSetting">
-              保存
-            </NButton>
-          </NSpace>
-        </div>
+
+          <div class="setting-item">
+            <div class="setting-item__content">
+              <div class="setting-item__title">
+                拍照识别
+              </div>
+              <NText depth="3">
+                关闭后，C 端不再展示拍照识别入口，也不能创建新的识别任务；历史识别记录仍可查看。
+              </NText>
+            </div>
+            <NSpace align="center" :size="12">
+              <NText :type="visionRecognitionEnabled ? 'success' : 'error'">
+                {{ visionRecognitionEnabled ? '已开放' : '已关闭' }}
+              </NText>
+              <NSwitch v-model:value="visionRecognitionEnabled" :disabled="savingVisionRecognition || !auth.isSuperAdmin" />
+              <NButton v-if="auth.isSuperAdmin" type="primary" :loading="savingVisionRecognition" @click="saveVisionRecognitionSetting">
+                保存
+              </NButton>
+            </NSpace>
+          </div>
+        </NSpace>
       </template>
     </NCard>
   </div>

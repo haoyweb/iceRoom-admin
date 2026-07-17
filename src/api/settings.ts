@@ -8,4 +8,7 @@ export const adminSettingsApi = {
   updateRegistration(enabled: boolean) {
     return alovaClient.Patch<ApiResponse<AdminSettings['registration']>>('/admin/settings/registration', { enabled })
   },
+  updateVisionRecognition(enabled: boolean) {
+    return alovaClient.Patch<ApiResponse<AdminSettings['visionRecognition']>>('/admin/settings/vision-recognition', { enabled })
+  },
 }
